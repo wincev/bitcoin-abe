@@ -35,5 +35,5 @@ class Worldleadcurrency(Sha256NmcAuxPowChain):
         start = 0
         pushed = 0
 
-    datadir_conf_file_name = "namecoin.conf"
+    datadir_conf_file_name = "worldleadcurrency.conf"
     datadir_rpcport = 9966
