@@ -1075,12 +1075,12 @@ store._ddl['txout_approx'],
         # Get a new block ID.
         block_id = int(store.new_id("block"))
         b['block_id'] = block_id
-'''
-        if chain is not None:
+
+#        if chain is not None:
             # Verify Merkle root.
-            if b['hashMerkleRoot'] != chain.merkle_root(tx_hash_array):
-                raise MerkleRootMismatch(b['hash'], tx_hash_array)
-'''
+#            if b['hashMerkleRoot'] != chain.merkle_root(tx_hash_array):
+#                raise MerkleRootMismatch(b['hash'], tx_hash_array)
+
         # Look for the parent block.
         hashPrev = b['hashPrev']
         if chain is None:
