@@ -64,7 +64,7 @@ DEFAULT_TEMPLATE = """
 <head>
     <link rel="stylesheet" type="text/css"
      href="%(dotdot)s%(STATIC_PATH)sabe.css" />
-    <link rel="shortcut icon" href="%(dotdot)s%(STATIC_PATH)sfavicon.ico" />
+    <link rel="shortcut icon" href="%(dotdot)s%(STATIC_PATH)sfavicon.ico?v=2" />
     <title>%(title)s</title>
 </head>
 <body>
@@ -79,11 +79,13 @@ DEFAULT_TEMPLATE = """
     <p style="font-size: smaller">
         <span style="font-style: italic">
             Powered by <a href="%(ABE_URL)s">%(APPNAME)s</a>
-        </span>
+
         %(download)s
-        Tips appreciated!
-        <a href="%(dotdot)saddress/%(DONATIONS_BTC)s">BTC</a>
-        <a href="%(dotdot)saddress/%(DONATIONS_NMC)s">NMC</a>
+        <br />
+        Tips appreciated!<br />
+        FRC : 17XgmZ79RbcH9C8QkoCZhA4dSY5sF4G3CR<br />
+        BTC : 1F42xewVciifc1mJ3khtk86MQCsQGcGcry<br />
+        </span>
     </p>
     </div>
     </div>
@@ -460,22 +462,22 @@ class Abe:
             hi = int(rows[0][1])
         basename = os.path.basename(page['env']['PATH_INFO'])
 
-        nav = ['<a href="',
+        nav = ['<p><div class="input-group"><div class="input-group-btn"><a class="btn btn-default btn-sm" href="',
                basename, '?count=', str(count), '">&lt;&lt;</a>']
-        nav += [' <a href="', basename, '?hi=', str(hi + count),
+        nav += [' <a class="btn btn-default btn-sm" href="', basename, '?hi=', str(hi + count),
                  '&amp;count=', str(count), '">&lt;</a>']
         nav += [' ', '&gt;']
         if hi >= count:
-            nav[-1] = ['<a href="', basename, '?hi=', str(hi - count),
+            nav[-1] = ['<a class="btn btn-default btn-sm" href="', basename, '?hi=', str(hi - count),
                         '&amp;count=', str(count), '">', nav[-1], '</a>']
         nav += [' ', '&gt;&gt;']
         if hi != count - 1:
-            nav[-1] = ['<a href="', basename, '?hi=', str(count - 1),
+            nav[-1] = ['<a class="btn btn-default btn-sm" href="', basename, '?hi=', str(count - 1),
                         '&amp;count=', str(count), '">', nav[-1], '</a>']
         for c in (20, 50, 100, 500, 2016):
             nav += [' ']
             if c != count:
-                nav += ['<a href="', basename, '?count=', str(c)]
+                nav += ['<a class="btn btn-default btn-sm" href="', basename, '?count=', str(c)]
                 if hi is not None:
                     nav += ['&amp;hi=', str(max(hi, c - 1))]
                 nav += ['">']
@@ -483,7 +485,7 @@ class Abe:
             if c != count:
                 nav += ['</a>']
 
-        nav += [' <a href="', page['dotdot'], '">Search</a>']
+        nav += [' <a class="btn btn-default btn-sm" href="', page['dotdot'], '">Search</a></div></div></p>']
 
         extra = False
         #extra = True
@@ -930,7 +932,7 @@ class Abe:
             ' public key hash, or chain name:</p>\n'
             '<form action="', page['dotdot'], 'search"><p>\n'
             '<input class="form-control" style="width:419px; display: inline;" name="q" size="64" value="', escape(q), '" />'
-            '<button type="submit">Search</button>\n'
+            '<button class="form-control btn btn-default" style="width:71px; display: inline; margin-top: -3px;" type="submit">Search</button>\n'
             '<br />Address or hash search requires at least the first ',
             HASH_PREFIX_MIN, ' characters.</p></form>\n']
 
