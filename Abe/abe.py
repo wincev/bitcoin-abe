@@ -68,6 +68,9 @@ DEFAULT_TEMPLATE = """
     <title>%(title)s</title>
 </head>
 <body>
+    <div class="container">
+    <div class="row">
+    <div class="col-lg-12">
     <h1><a href="%(dotdot)s%(HOMEPAGE)s"><img
      src="%(dotdot)s%(STATIC_PATH)slogo32.png" alt="Abe logo" /></a> %(h1)s
     </h1>
@@ -82,6 +85,9 @@ DEFAULT_TEMPLATE = """
         <a href="%(dotdot)saddress/%(DONATIONS_BTC)s">BTC</a>
         <a href="%(dotdot)saddress/%(DONATIONS_NMC)s">NMC</a>
     </p>
+    </div>
+    </div>
+    <div>
 </body>
 </html>
 """
@@ -291,7 +297,7 @@ class Abe:
         body = page['body']
         body += [
             abe.search_form(page),
-            '<table>\n',
+            '<table class="table table-bordered">\n',
             '<tr><th>Currency</th><th>Code</th><th>Block</th><th>Time</th>',
             '<th>Started</th><th>Age (days)</th><th>Coins Created</th>',
             '<th>Avg Coin Age</th><th>',
@@ -482,7 +488,7 @@ class Abe:
         extra = False
         #extra = True
         body += ['<p>', nav, '</p>\n',
-                 '<table><tr><th>Block</th><th>Approx. Time</th>',
+                 '<table class="table table-bordered"><tr><th>Block</th><th>Approx. Time</th>',
                  '<th>Transactions</th><th>Value Out</th>',
                  '<th>Difficulty</th><th>Outstanding</th>',
                  '<th>Average Age</th><th>Chain Age</th>',
@@ -619,7 +625,7 @@ class Abe:
 
         body += ['<h3>Transactions</h3>\n']
 
-        body += ['<table><tr><th>Transaction</th><th>Fee</th>'
+        body += ['<table class="table table-bordered"><tr><th>Transaction</th><th>Fee</th>'
                  '<th>Size (kB)</th><th>From (amount)</th><th>To (amount)</th>'
                  '</tr>\n']
 
@@ -760,7 +766,7 @@ class Abe:
             '<br />\n',
             '<a href="../rawtx/', tx['hash'], '">Raw transaction</a><br />\n']
         body += ['</p>\n',
-                 '<a name="inputs"><h3>Inputs</h3></a>\n<table>\n',
+                 '<a name="inputs"><h3>Inputs</h3></a>\n<table class="table table-bordered">\n',
                  '<tr><th>Index</th><th>Previous output</th><th>Amount</th>',
                  '<th>From address</th>']
         if abe.store.keep_scriptsig:
@@ -770,7 +776,7 @@ class Abe:
             row_to_html(txin, 'i', 'o',
                         'Generation' if is_coinbase else 'Unknown')
         body += ['</table>\n',
-                 '<a name="outputs"><h3>Outputs</h3></a>\n<table>\n',
+                 '<a name="outputs"><h3>Outputs</h3></a>\n<table class="table table-bordered">\n',
                  '<tr><th>Index</th><th>Redeemed at input</th><th>Amount</th>',
                  '<th>To address</th><th>ScriptPubKey</th></tr>\n']
         for txout in tx['out']:
@@ -885,7 +891,7 @@ class Abe:
 
         body += ['</p>\n'
                  '<h3>Transactions</h3>\n'
-                 '<table class="addrhist">\n<tr><th>Transaction</th><th>Block</th>'
+                 '<table class="addrhist table table-bordered">\n<tr><th>Transaction</th><th>Block</th>'
                  '<th>Approx. Time</th><th>Amount</th><th>Balance</th>'
                  '<th>Currency</th></tr>\n']
 
@@ -923,7 +929,7 @@ class Abe:
             '<p>Search by address, block number or hash, transaction or'
             ' public key hash, or chain name:</p>\n'
             '<form action="', page['dotdot'], 'search"><p>\n'
-            '<input name="q" size="64" value="', escape(q), '" />'
+            '<input class="form-control" style="width:419px; display: inline;" name="q" size="64" value="', escape(q), '" />'
             '<button type="submit">Search</button>\n'
             '<br />Address or hash search requires at least the first ',
             HASH_PREFIX_MIN, ' characters.</p></form>\n']
