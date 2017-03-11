@@ -2187,7 +2187,7 @@ store._ddl['txout_approx'],
                     b.block_hash,
                     tx.tx_hash,
                     txin.txin_pos,
-                    -prevout.txout_value""" + (""",
+                    -prevout.txout_value*POWER((1-1/POWER(2,20)),((SELECT block_height FROM chain_candidate WHERE chain_id = chain_id AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) - b.block_id))""" + (""",
                     prevout.txout_scriptPubKey""" if escrow else "") + """
                   FROM chain_candidate cc
                   JOIN block b ON (b.block_id = cc.block_id)
@@ -2213,7 +2213,7 @@ store._ddl['txout_approx'],
                     b.block_hash,
                     tx.tx_hash,
                     txout.txout_pos,
-                    txout.txout_value""" + (""",
+                    txout.txout_value*POWER((1-1/POWER(2,20)),((SELECT block_height FROM chain_candidate WHERE chain_id = chain_id AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) - b.block_id))""" + (""",
                     txout.txout_scriptPubKey""" if escrow else "") + """
                   FROM chain_candidate cc
                   JOIN block b ON (b.block_id = cc.block_id)
