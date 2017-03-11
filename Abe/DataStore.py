@@ -6,12 +6,12 @@
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
 # License, or (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Affero General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Affero General Public
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/agpl.html>.
@@ -1707,6 +1707,7 @@ store._ddl['txout_approx'],
             tx['total_in'] += txin_value
             block_in += txin_value
 
+
             txin = { 'value': txin_value }
             store._export_scriptPubKey(txin, found_chain, scriptPubKey)
             tx['in'].append(txin)
@@ -1781,8 +1782,8 @@ store._ddl['txout_approx'],
                  WHERE txin.tx_id = ?""", (tx_id,))
             if (count_in or 0) < len(tx['txIn']):
                 value_in = 0 if is_coinbase else None
-            tx['value_in'] = None if value_in is None else int(value_in)
-            tx['value_out'] = value_out
+            tx['value_in'] = None if value_in is None else int(value_in)*pow((1-1/pow(2,20)),(174558 - block_id))
+            tx['value_out'] = value_out*pow((1-1/pow(2,20)),(174558 - block_id))
             tx['value_destroyed'] = value_out - undestroyed
             return tx_id
 
@@ -3032,7 +3033,7 @@ store._ddl['txout_approx'],
 
     def get_target(store, chain_id):
         rows = store.selectall("""
-            SELECT b.block_nBits
+	            SELECT b.block_nBits
               FROM block b
               JOIN chain c ON (b.block_id = c.chain_last_block_id)
              WHERE c.chain_id = ?""", (chain_id,))
@@ -3042,22 +3043,22 @@ store._ddl['txout_approx'],
                                        block_height = None):
         sql = """
             SELECT COALESCE(value_sum, 0), c.chain_last_block_id
-              FROM chain c LEFT JOIN (
-              SELECT cc.chain_id, SUM(txout.txout_value) value_sum
-              FROM pubkey
-              JOIN txout              ON (txout.pubkey_id = pubkey.pubkey_id)
-              JOIN block_tx           ON (block_tx.tx_id = txout.tx_id)
-              JOIN block b            ON (b.block_id = block_tx.block_id)
-              JOIN chain_candidate cc ON (cc.block_id = b.block_id)
-              WHERE
-                  pubkey.pubkey_hash = ? AND
-                  cc.chain_id = ? AND
-                  cc.in_longest = 1""" + (
-                  "" if block_height is None else """ AND
-                  cc.block_height <= ?""") + """
-              GROUP BY cc.chain_id
-              ) a ON (c.chain_id = a.chain_id)
-              WHERE c.chain_id = ?"""
+                          FROM chain c LEFT JOIN (
+                          SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-1/POWER(2,20)),((SELECT block_height FROM chain_candidate WHERE chain_id = chain_id AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) - b.block_id))) value_sum
+                          FROM pubkey
+                          JOIN txout              ON (txout.pubkey_id = pubkey.pubkey_id)
+                          JOIN block_tx           ON (block_tx.tx_id = txout.tx_id)
+                          JOIN block b            ON (b.block_id = block_tx.block_id)
+                          JOIN chain_candidate cc ON (cc.block_id = b.block_id)
+                          WHERE
+                              pubkey.pubkey_hash = ? AND
+                              cc.chain_id = ? AND
+                              cc.in_longest = 1""" + (
+                              "" if block_height is None else """ AND
+                              cc.block_height <= ?""") + """
+                          GROUP BY cc.chain_id
+                          ) a ON (c.chain_id = a.chain_id)
+                          WHERE c.chain_id = ?"""
         dbhash = store.binin(pubkey_hash)
 
         return store.selectrow(sql,
@@ -3074,7 +3075,7 @@ store._ddl['txout_approx'],
         sql = """
             SELECT COALESCE(value_sum, 0), c.chain_last_block_id
               FROM chain c LEFT JOIN (
-              SELECT cc.chain_id, SUM(txout.txout_value) value_sum
+              SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-1/POWER(2,20)),((SELECT block_height FROM chain_candidate WHERE chain_id = chain_id AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) - b.block_id))) value_sum
               FROM pubkey
               JOIN txout              ON (txout.pubkey_id = pubkey.pubkey_id)
               JOIN txin               ON (txin.txout_id = txout.txout_id)

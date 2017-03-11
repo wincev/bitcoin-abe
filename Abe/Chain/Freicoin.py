@@ -24,3 +24,7 @@ class Freicoin(Sha256Chain):
         chain.script_addr_vers = '\x05'
         chain.magic = '\x2c\xfe\x7e\x6d'
         Sha256Chain.__init__(chain, **kwargs)
+    datadir_conf_file_name = 'freicoin.conf'
+    datadir_rpcport = 8638
+    datadir_p2pport = 8639
+
