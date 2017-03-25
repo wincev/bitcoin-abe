@@ -3096,7 +3096,7 @@ store._ddl['txout_approx'],
               FROM chain c LEFT JOIN (
               SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-1/POWER(2,20)),
               (SELECT block_height FROM chain_candidate WHERE chain_id = chain_id
-              AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) -(SELECT b2.block_height FROM txout_detail b2 where b2.txout_id = prevout.txout_id)) value_sum
+              AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) -(SELECT b2.block_height FROM txout_detail b2 where b2.txout_id = txout.txout_id))) value_sum
               FROM pubkey
               JOIN txout              ON (txout.pubkey_id = pubkey.pubkey_id)
               JOIN txin               ON (txin.txout_id = txout.txout_id)
