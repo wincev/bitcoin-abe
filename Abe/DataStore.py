@@ -1712,10 +1712,13 @@ store._ddl['txout_approx'],
             store._export_scriptPubKey(txin, found_chain, scriptPubKey)
             tx['in'].append(txin)
 
-        generated = block_out - block_in
+        #generated = block_out - block_in
+        #generated = txs[tx_ids[0]]
         coinbase_tx = txs[tx_ids[0]]
         coinbase_tx['fees'] = 0
-        block_fees = coinbase_tx['total_out'] - generated
+	generated = coinbase_tx['total_out']
+	gen = block_out - block_in
+        block_fees = coinbase_tx['total_out'] - gen
 
         b = {
             'chain_candidates':      cc,
@@ -2187,7 +2190,7 @@ store._ddl['txout_approx'],
                     b.block_hash,
                     tx.tx_hash,
                     txin.txin_pos,
-                    -prevout.txout_value*POWER((1-1/POWER(2,20)),((SELECT block_height FROM chain_candidate WHERE chain_id = chain_id AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) - b.block_id))""" + (""",
+                    -prevout.txout_value*POWER((1-1/POWER(2,20)),((SELECT block_height FROM chain_candidate WHERE chain_id = chain_id AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) - (SELECT b2.block_height FROM txout_detail b2 where b2.txout_id = prevout.txout_id))""" + (""",
                     prevout.txout_scriptPubKey""" if escrow else "") + """
                   FROM chain_candidate cc
                   JOIN block b ON (b.block_id = cc.block_id)
@@ -2213,7 +2216,7 @@ store._ddl['txout_approx'],
                     b.block_hash,
                     tx.tx_hash,
                     txout.txout_pos,
-                    txout.txout_value*POWER((1-1/POWER(2,20)),((SELECT block_height FROM chain_candidate WHERE chain_id = chain_id AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) - b.block_id))""" + (""",
+                    txout.txout_value*POWER((1-1/POWER(2,20)),((SELECT block_height FROM chain_candidate WHERE chain_id = chain_id AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) - (SELECT b2.block_height FROM txout_detail b2 where b2.txout_id = prevout.txout_id))""" + (""",
                     txout.txout_scriptPubKey""" if escrow else "") + """
                   FROM chain_candidate cc
                   JOIN block b ON (b.block_id = cc.block_id)
@@ -3044,7 +3047,7 @@ store._ddl['txout_approx'],
         sql = """
             SELECT COALESCE(value_sum, 0), c.chain_last_block_id
                           FROM chain c LEFT JOIN (
-                          SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-1/POWER(2,20)),((SELECT block_height FROM chain_candidate WHERE chain_id = chain_id AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) - b.block_id))) value_sum
+                          SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-1/POWER(2,20)),((SELECT block_height FROM chain_candidate WHERE chain_id = chain_id AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) - b.block_height))) value_sum
                           FROM pubkey
                           JOIN txout              ON (txout.pubkey_id = pubkey.pubkey_id)
                           JOIN block_tx           ON (block_tx.tx_id = txout.tx_id)
@@ -3075,7 +3078,7 @@ store._ddl['txout_approx'],
         sql = """
             SELECT COALESCE(value_sum, 0), c.chain_last_block_id
               FROM chain c LEFT JOIN (
-              SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-1/POWER(2,20)),((SELECT block_height FROM chain_candidate WHERE chain_id = chain_id AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) - b.block_id))) value_sum
+              SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-1/POWER(2,20)),((SELECT block_height FROM chain_candidate WHERE chain_id = chain_id AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) - (SELECT b2.block_height FROM txout_detail b2 where b2.txout_id = prevout.txout_id)))) value_sum
               FROM pubkey
               JOIN txout              ON (txout.pubkey_id = pubkey.pubkey_id)
               JOIN txin               ON (txin.txout_id = txout.txout_id)
