@@ -66,6 +66,22 @@ DEFAULT_TEMPLATE = """
      href="%(dotdot)s%(STATIC_PATH)sabe.css" />
     <link rel="shortcut icon" href="%(dotdot)s%(STATIC_PATH)sfavicon.ico?v=2" />
     <title>%(title)s</title>
+<!-- Piwik -->
+<script type="text/javascript">
+  var _paq = _paq || [];
+  /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="//stats.freicoin.info/";
+    _paq.push(['setTrackerUrl', u+'piwik.php']);
+    _paq.push(['setSiteId', '2']);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'piwik.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Piwik Code -->
+
 </head>
 <body>
     <div class="container">
