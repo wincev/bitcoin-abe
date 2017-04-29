@@ -556,6 +556,7 @@ LEFT JOIN block prev ON (b.prev_block_id = prev.block_id)""",
     tx.tx_lockTime,
     tx.tx_version,
     tx.tx_size,
+	tx.tx_refheight,
     txout.txout_id,
     txout.txout_pos,
     txout.txout_value,
@@ -583,6 +584,7 @@ LEFT JOIN block prev ON (b.prev_block_id = prev.block_id)""",
     tx.tx_lockTime,
     tx.tx_version,
     tx.tx_size,
+	tx.tx_refheight,
     txin.txin_id,
     txin.txin_pos,
     txin.txout_id prevout_id""" + (""",
@@ -733,7 +735,8 @@ store._ddl['configvar'],
     tx_hash       BINARY(32)  UNIQUE NOT NULL,
     tx_version    NUMERIC(10),
     tx_lockTime   NUMERIC(10),
-    tx_size       NUMERIC(10)
+    tx_size       NUMERIC(10),
+	tx_refheight    NUMERIC(10)
 )""",
 
 # Presence of transactions in blocks is many-to-many.
@@ -1042,9 +1045,11 @@ store._ddl['txout_approx'],
         # In the common case, all the block's txins _are_ linked, and we
         # can avoid a query if we notice this.
         all_txins_linked = True
-
+		
+	#print b['transactions']
         for pos in xrange(len(b['transactions'])):
             tx = b['transactions'][pos]
+            #print tx
 
             if 'hash' not in tx:
                 if chain is None:
@@ -1792,15 +1797,16 @@ store._ddl['txout_approx'],
     def import_tx(store, tx, is_coinbase, chain):
         tx_id = store.new_id("tx")
         dbhash = store.hashin(tx['hash'])
-
+        #print tx_id, dbhash, store.intin(tx['version']), store.intin(tx['lockTime']),store.intin(tx['nRefHeight'])
+		
         if 'size' not in tx:
             tx['size'] = len(tx['__data__'])
 
         store.sql("""
-            INSERT INTO tx (tx_id, tx_hash, tx_version, tx_lockTime, tx_size)
-            VALUES (?, ?, ?, ?, ?)""",
+            INSERT INTO tx (tx_id, tx_hash, tx_version, tx_lockTime, tx_size, tx_refheight)
+            VALUES (?, ?, ?, ?, ?, ?)""",
                   (tx_id, dbhash, store.intin(tx['version']),
-                   store.intin(tx['lockTime']), tx['size']))
+                   store.intin(tx['lockTime']), tx['size'],store.intin(tx['nRefHeight'])))
 
         # Import transaction outputs.
         tx['value_out'] = 0
@@ -2128,6 +2134,7 @@ store._ddl['txout_approx'],
         if binaddr is None:
             raise MalformedAddress("Invalid address")
 
+        demurrage = {}			
         balance = {}
         received = {}
         sent = {}
@@ -2140,28 +2147,34 @@ store._ddl['txout_approx'],
 
             if chain.id not in balance:
                 chains.append(chain)
+                demurrage[chain.id] = 0
                 balance[chain.id] = 0
                 received[chain.id] = 0
                 sent[chain.id] = 0
 
             if txpoint['type'] == 'direct':
                 value = txpoint['value']
+                value_r = txpoint['value_r']
                 trblock = txpoint['height']
-                #balance[chain.id] += value*(0.9999990473)**(174548-trblock)
-                balance[chain.id] += value
+                #
+                balance[chain.id] += value_r
+				
                 if txpoint['is_out']:
-                    #sent[chain.id] -= value*(0.9999990473)**(174548-trblock)
+                    #
                     sent[chain.id] -= value
+                    demurrage[chain.id] += 0
                 else:
-                    #received[chain.id] += value*(0.9999990473)**(174548-trblock)
+                    #
                     received[chain.id] += value
+                    demurrage[chain.id] += (value-value_r)
+					
                 counts[txpoint['is_out']] += 1
 
 
         dbhash = store.binin(binaddr)
         txpoints = []
 
-        def parse_row(is_out, row_type, nTime, chain_id, height, blk_hash, tx_hash, pos, value, script=None):
+        def parse_row(is_out, row_type, nTime, chain_id, height, blk_hash, tx_hash, pos, value_o, value_r, script=None):
             chain = store.get_chain_by_id(chain_id)
             txpoint = {
                 'type':     row_type,
@@ -2172,7 +2185,8 @@ store._ddl['txout_approx'],
                 'blk_hash': store.hashout_hex(blk_hash),
                 'tx_hash':  store.hashout_hex(tx_hash),
                 'pos':      int(pos),
-                'value':    int(value),
+                'value':    int(value_o),
+                'value_r':    int(value_r),
                 }
             if script is not None:
                 store._export_scriptPubKey(txpoint, chain, store.binout(script))
@@ -2185,6 +2199,8 @@ store._ddl['txout_approx'],
         def parse_escrow_out(row): return parse_row(False, 'escrow', *row)
 
         def get_received(escrow):
+            ((current_height,),)= store.selectall("""SELECT block_height FROM chain_candidate WHERE chain_id = chain_id
+                    AND in_longest = 1 ORDER BY block_height DESC LIMIT 1""")
             return store.selectall("""
                 SELECT
                     b.block_nTime,
@@ -2192,11 +2208,10 @@ store._ddl['txout_approx'],
                     b.block_height,
                     b.block_hash,
                     tx.tx_hash,
-                    txin.txin_pos,
+                    txin.txin_pos, -prevout.txout_value,
                     -prevout.txout_value*POWER((1-1/POWER(2,20)),
-                    (SELECT block_height FROM chain_candidate WHERE chain_id = chain_id
-                    AND in_longest = 1 ORDER BY block_height DESC LIMIT 1)
-                    -(SELECT b2.block_height FROM txout_detail b2 where b2.txout_id = prevout.txout_id))""" + (""",
+					(SELECT a2.tx_refheight FROM txin_detail a2 where a2.txin_id = txin.txin_id)
+                    -(SELECT b2.tx_refheight FROM txout_detail b2 where b2.txout_id = prevout.txout_id))""" + (""",
                     prevout.txout_scriptPubKey""" if escrow else "") + """
                   FROM chain_candidate cc
                   JOIN block b ON (b.block_id = cc.block_id)
@@ -2214,6 +2229,8 @@ store._ddl['txout_approx'],
                           (dbhash, max_rows + 1))
 
         def get_sent(escrow):
+            ((current_height,),)= store.selectall("""SELECT block_height FROM chain_candidate WHERE chain_id = chain_id
+                    AND in_longest = 1 ORDER BY block_height DESC LIMIT 1""")
             return store.selectall("""
                 SELECT
                     b.block_nTime,
@@ -2221,10 +2238,10 @@ store._ddl['txout_approx'],
                     b.block_height,
                     b.block_hash,
                     tx.tx_hash,
-                    txout.txout_pos,
+                    txout.txout_pos, txout.txout_value,
                     txout.txout_value*POWER((1-1/POWER(2,20)),
-                    (SELECT block_height FROM chain_candidate WHERE chain_id = chain_id
-                    AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) -b.block_height)""" + (""",
+					(IFNULL((SELECT futurin2.tx_refheight FROM txin_detail futurin2 WHERE futurin2.prevout_id=txout.txout_id), ?))
+                    -(SELECT b2.tx_refheight FROM txout_detail b2 where b2.txout_id = txout.txout_id))""" + (""",
                     txout.txout_scriptPubKey""" if escrow else "") + """
                   FROM chain_candidate cc
                   JOIN block b ON (b.block_id = cc.block_id)
@@ -2236,9 +2253,9 @@ store._ddl['txout_approx'],
                  WHERE pubkey.pubkey_hash = ?
                    AND cc.in_longest = 1""" + ("" if max_rows < 0 else """
                  LIMIT ?"""),
-                          (dbhash, max_rows + 1)
+                          (current_height, dbhash, max_rows + 1)
                           if max_rows >= 0 else
-                          (dbhash,))
+                          (current_height, dbhash,))
 
         if 'direct' in types:
             in_rows = get_received(False)
@@ -2278,6 +2295,7 @@ store._ddl['txout_approx'],
             'version':  version,
             'chains':   chains,
             'txpoints': txpoints,
+			'demurrage': demurrage,
             'balance':  balance,
             'sent':     sent,
             'received': received,
@@ -3052,15 +3070,13 @@ store._ddl['txout_approx'],
 
     def get_received_and_last_block_id(store, chain_id, pubkey_hash,
                                        block_height = None):
-        #blockheightnow = get_max_block_height()+1
-        blockheightnow = 174544
-        #*POWER((1-1/POWER(2,20)),blockheightnow-b.block_id)
+        ((current_height,),)= store.selectall("""SELECT block_height FROM chain_candidate WHERE chain_id = chain_id
+                    AND in_longest = 1 ORDER BY block_height DESC LIMIT 1""")
         sql = """
             SELECT COALESCE(value_sum, 0), c.chain_last_block_id
               FROM chain c LEFT JOIN (
               SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-1/POWER(2,20)),
-              (SELECT block_height FROM chain_candidate WHERE chain_id = chain_id
-              AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) -b.block_height)) value_sum
+              ? -(SELECT b2.tx_refheight FROM txout_detail b2 where b2.txout_id = txout.txout_id))) value_sum
               FROM pubkey
               JOIN txout              ON (txout.pubkey_id = pubkey.pubkey_id)
               JOIN block_tx           ON (block_tx.tx_id = txout.tx_id)
@@ -3078,9 +3094,9 @@ store._ddl['txout_approx'],
         dbhash = store.binin(pubkey_hash)
 
         return store.selectrow(sql,
-                               (dbhash, chain_id, chain_id)
+                               (current_height, dbhash, chain_id, chain_id)
                                if block_height is None else
-                               (dbhash, chain_id, block_height, chain_id))
+                               (current_height, dbhash, chain_id, block_height, chain_id))
 
     def get_received(store, chain_id, pubkey_hash, block_height = None):
         return store.get_received_and_last_block_id(
@@ -3088,15 +3104,13 @@ store._ddl['txout_approx'],
 
     def get_sent_and_last_block_id(store, chain_id, pubkey_hash,
                                    block_height = None):
-        #blockheightnow = get_max_block_height()+1
-        blockheightnow = 174544
-        #*POWER((1-1/POWER(2,20)),blockheightnow-b.block_id)
+        ((current_height,),)= store.selectall("""SELECT block_height FROM chain_candidate WHERE chain_id = chain_id
+                    AND in_longest = 1 ORDER BY block_height DESC LIMIT 1""")
         sql = """
             SELECT COALESCE(value_sum, 0), c.chain_last_block_id
               FROM chain c LEFT JOIN (
               SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-1/POWER(2,20)),
-              (SELECT block_height FROM chain_candidate WHERE chain_id = chain_id
-              AND in_longest = 1 ORDER BY block_height DESC LIMIT 1) -(SELECT b2.block_height FROM txout_detail b2 where b2.txout_id = txout.txout_id))) value_sum
+              ? -(SELECT b2.tx_refheight FROM txout_detail b2 where b2.txout_id = txout.txout_id))) value_sum
               FROM pubkey
               JOIN txout              ON (txout.pubkey_id = pubkey.pubkey_id)
               JOIN txin               ON (txin.txout_id = txout.txout_id)
@@ -3115,9 +3129,9 @@ store._ddl['txout_approx'],
         dbhash = store.binin(pubkey_hash)
 
         return store.selectrow(sql,
-                               (dbhash, chain_id, chain_id)
+                               (current_height, dbhash, chain_id, chain_id)
                                if block_height is None else
-                               (dbhash, chain_id, block_height, chain_id))
+                               (current_height, dbhash, chain_id, block_height, chain_id))
 
     def get_sent(store, chain_id, pubkey_hash, block_height = None):
         return store.get_sent_and_last_block_id(

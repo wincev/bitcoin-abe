@@ -826,6 +826,7 @@ class Abe:
         chains   = history['chains']
         txpoints = history['txpoints']
         balance  = history['balance']
+        demurrage = history['demurrage']
         sent     = history['sent']
         received = history['received']
         counts   = history['counts']
@@ -866,6 +867,7 @@ class Abe:
         body += abe.short_link(page, 'a/' + link)
 
         body += ['<p>Balance: '] + format_amounts(balance, True)
+        body += ['<p>Demurrage: '] + format_amounts(demurrage, True)
 
         if 'subbinaddr' in history:
             chain = page['chain']
@@ -884,7 +886,8 @@ class Abe:
 
         for chain in chains:
             balance[chain.id] = 0  # Reset for history traversal.
-
+            demurrage[chain.id] = 0 # Reset for history traversal.
+			
         body += ['<br />\n',
                  'Transactions in: ', counts[0], '<br />\n',
                  'Received: ', format_amounts(received, False), '<br />\n',
@@ -894,7 +897,7 @@ class Abe:
         body += ['</p>\n'
                  '<h3>Transactions</h3>\n'
                  '<table class="addrhist table table-bordered table-striped table-hover">\n<tr class="table-info"><th>Transaction</th><th>Block</th>'
-                 '<th>Approx. Time</th><th>Amount</th><th>Balance</th>'
+                 '<th>Approx. Time</th><th>Original Amount</th><th>Redeemable Amount</th><th>Cumulative Demurrage</th><th>Balance</th>'
                  '<th>Currency</th></tr>\n']
 
         for elt in txpoints:
@@ -902,7 +905,7 @@ class Abe:
             type = elt['type']
 
             if type == 'direct':
-                balance[chain.id] += elt['value']
+                balance[chain.id] += elt['value_r']
 
             body += ['<tr class="', type, '"><td class="tx"><a href="../tx/', elt['tx_hash'],
                      '#', 'i' if elt['is_out'] else 'o', elt['pos'],
@@ -912,15 +915,23 @@ class Abe:
                      format_time(elt['nTime']), '</td><td class="amount">']
 
             if elt['value'] < 0:
-                value = '(' + format_satoshis(-elt['value'], chain) + ')'
+                value = '(' + format_satoshis(-elt['value'], chain) + ')'				
             else:
                 value = format_satoshis(elt['value'], chain)
 
+            if elt['value_r'] < 0:
+                value_r = '(' + format_satoshis(-elt['value_r'], chain) + ')'
+                demurrage[chain.id] += 0
+            else:
+                value_r = format_satoshis(elt['value_r'], chain)
+                demurrage[chain.id] += (elt['value']-elt['value_r'])
+				
             if 'binaddr' in elt:
                 value = hash_to_address_link(chain.script_addr_vers, elt['binaddr'], page['dotdot'], text=value)
 
-            body += [value, '</td><td class="balance">',
-                     format_satoshis(balance[chain.id], chain),
+            body += [value, '</td><td class="amount">', value_r,
+           	         '</td><td class="demurrage">', format_satoshis(demurrage[chain.id], chain), 
+			         '</td><td class="balance">', format_satoshis(balance[chain.id], chain),
                      '</td><td class="currency">', escape(chain.code3),
                      '</td></tr>\n']
         body += ['</table>\n']
@@ -1561,7 +1572,7 @@ class Abe:
 
         elif fmt == "json":
             page['content_type'] = 'application/json'
-            return json.dumps(ret)
+            return json.dumps(ret,sort_keys=True)
 
         elif fmt == "jsonp":
             page['content_type'] = 'application/javascript'
@@ -1676,9 +1687,9 @@ class Abe:
         return ret
 
     def q_totalfrc(abe,page,chain):
-        """returns total mined coins."""
+        """returns total supply of FRC."""
         if chain is None:
-            return 'Shows total Freicoin Mined.\n'\
+            return 'Shows total Freicoin supply.\n'\
                 '/chain/CHAIN/q/totalfrc\n'
 
         total = 100000000
@@ -1775,7 +1786,7 @@ class Abe:
 
     def q_circulatingfrc(abe, page, chain):
         # INSERT IN LINE 1761 in ABE.py
-        """shows the current block number."""
+        """shows the amount of FRC circulating."""
         if chain is None:
             return 'Shows total supply minus foundation funds.\n' \
             '/chain/CHAIN/q/circulatingfrc\n'
