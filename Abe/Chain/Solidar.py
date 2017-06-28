@@ -16,11 +16,13 @@
 
 from .Sha256NmcAuxPowChain import Sha256NmcAuxPowChain
 
-class Worldleadcurrency(Sha256NmcAuxPowChain):
+class Solidar(Sha256NmcAuxPowChain):
     
     def __init__(chain, **kwargs):
-        chain.name = 'Worldleadcurrency'
-        chain.code3 = 'WLC'
+        chain.name = 'Solidar'
+        chain.code3 = 'SLR'
         chain.address_version = '\x00'
         chain.magic = '\x5b\x6c\x44\xa4'
         Sha256NmcAuxPowChain.__init__(chain, **kwargs)
+    
+    datadir_rpcport = 44889
