@@ -1686,7 +1686,7 @@ store._ddl['txout_approx'],
             tx['out'].append(txout)
 
         for row in store.selectall("""
-            SELECT tx_id, txin_value*POWER((1-1/POWER(2,20)),(tx_refheight)
+            SELECT tx_id, txin_value*POWER((1-4/POWER(2,20)),(tx_refheight)
                     -(SELECT b2.tx_refheight FROM txout_detail b2 where b2.txout_id = prevout_id)), 
 			txin_scriptPubKey
               FROM txin_detail
@@ -2215,7 +2215,7 @@ store._ddl['txout_approx'],
                     b.block_hash,
                     tx.tx_hash,
                     txin.txin_pos, tx.tx_refheight, -prevout.txout_value,
-                    -prevout.txout_value*POWER((1-1/POWER(2,20)), (tx.tx_refheight)
+                    -prevout.txout_value*POWER((1-4/POWER(2,20)), (tx.tx_refheight)
                     -(SELECT b2.tx_refheight FROM txout_detail b2 where b2.txout_id = prevout.txout_id))""" + (""",
                     prevout.txout_scriptPubKey""" if escrow else "") + """
                   FROM chain_candidate cc
@@ -2244,7 +2244,7 @@ store._ddl['txout_approx'],
                     b.block_hash,
                     tx.tx_hash,
                     txout.txout_pos, tx.tx_refheight, txout.txout_value,
-                    txout.txout_value*POWER((1-1/POWER(2,20)),
+                    txout.txout_value*POWER((1-4/POWER(2,20)),
 					(IFNULL((SELECT futurin2.tx_refheight FROM txin_detail futurin2 WHERE futurin2.prevout_id=txout.txout_id), ?))
                     -(tx.tx_refheight))""" + (""",
                     txout.txout_scriptPubKey""" if escrow else "") + """
@@ -3080,7 +3080,7 @@ store._ddl['txout_approx'],
         sql = """
             SELECT COALESCE(value_sum, 0), c.chain_last_block_id
               FROM chain c LEFT JOIN (
-              SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-1/POWER(2,20)),
+              SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-4/POWER(2,20)),
               ? -(SELECT b2.tx_refheight FROM txout_detail b2 where b2.txout_id = txout.txout_id))) value_sum
               FROM pubkey
               JOIN txout              ON (txout.pubkey_id = pubkey.pubkey_id)
@@ -3114,7 +3114,7 @@ store._ddl['txout_approx'],
         sql = """
             SELECT COALESCE(value_sum, 0), c.chain_last_block_id
               FROM chain c LEFT JOIN (
-              SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-1/POWER(2,20)),
+              SELECT cc.chain_id, SUM(txout.txout_value*POWER((1-4/POWER(2,20)),
               ? -(SELECT b2.tx_refheight FROM txout_detail b2 where b2.txout_id = txout.txout_id))) value_sum
               FROM pubkey
               JOIN txout              ON (txout.pubkey_id = pubkey.pubkey_id)
