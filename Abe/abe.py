@@ -81,7 +81,6 @@ DEFAULT_TEMPLATE = """
   })();
 </script>
 <!-- End Piwik Code -->
-
 </head>
 <body>
     <div class="container">
@@ -882,8 +881,9 @@ class Abe:
             link = address[0 : abe.shortlink_type]
         body += abe.short_link(page, 'a/' + link)
 
-        body += ['<p>Balance: '] + format_amounts(balance, True)
-        body += ['<p>Demurrage: '] + format_amounts(demurrage, True)
+        body += ['<p>Current Balance: '] + format_amounts(balance, True)
+        body += ['<br />Cumulative Demurrage: '] + format_amounts(demurrage, True)
+        body += ['<p>']
 
         if 'subbinaddr' in history:
             chain = page['chain']
@@ -913,12 +913,26 @@ class Abe:
         body += ['</p>\n'
                  '<h3>Transactions</h3>\n'
                  '<table class="addrhist table table-bordered table-striped table-hover">\n<tr class="table-info"><th>Transaction</th><th>Block</th>'
-                 '<th>Approx. Time</th><th>Original Amount</th><th>Redeemable Amount</th><th>Cumulative Demurrage</th><th>Balance</th>'
+                 '<th>Ref. Height</th><th>Approx. Time</th><th>Amount</th>'
+				 '<th>Demurrage</th><th>Balance</th>'
                  '<th>Currency</th></tr>\n']
+				 
+        #zero before table loop
+        last_refheight=0
+        prev_balance=0
+        counting=0
 
         for elt in txpoints:
             chain = elt['chain']
             type = elt['type']
+			
+            if counting==0:
+                last_refheight=elt['tx_refheight']
+            else:
+                last_refheight=tx_refheight
+			
+            counting+=1			
+            tx_refheight=elt['tx_refheight']
 
             if type == 'direct':
                 balance[chain.id] += elt['value_r']
@@ -927,30 +941,30 @@ class Abe:
                      '#', 'i' if elt['is_out'] else 'o', elt['pos'],
                      '">', elt['tx_hash'][:10], '...</a>',
                      '</td><td class="block"><a href="../block/', elt['blk_hash'],
-                     '">', elt['height'], '</a></td><td class="time">',
+                     '">', elt['height'], '</a></td><td class="block">',elt['tx_refheight'], '</a></td><td class="time">',
                      format_time(elt['nTime']), '</td><td class="amount">']
 
             if elt['value'] < 0:
-                value = '(' + format_satoshis(-elt['value'], chain) + ')'				
+                value = '(' + format_satoshis(-elt['value_r'], chain) + ')'
+                demurrage[chain.id] = prev_balance-prev_balance*math.pow((1-math.pow(2,-20)),tx_refheight-last_refheight)
+                balance[chain.id] = prev_balance+(elt['value_r']- demurrage[chain.id])
             else:
                 value = format_satoshis(elt['value'], chain)
-
-            if elt['value_r'] < 0:
-                value_r = '(' + format_satoshis(-elt['value_r'], chain) + ')'
-                demurrage[chain.id] += 0
-            else:
-                value_r = format_satoshis(elt['value_r'], chain)
-                demurrage[chain.id] += (elt['value']-elt['value_r'])
+                demurrage[chain.id] = prev_balance -prev_balance*math.pow((1-math.pow(2,-20)),tx_refheight-last_refheight)
+                balance[chain.id] = prev_balance+(elt['value']- demurrage[chain.id])
 				
             if 'binaddr' in elt:
                 value = hash_to_address_link(chain.script_addr_vers, elt['binaddr'], page['dotdot'], text=value)
 
-            body += [value, '</td><td class="amount">', value_r,
+            last_refheight = tx_refheight
+            prev_balance=balance[chain.id]
+			
+            body += [value, 
            	         '</td><td class="demurrage">', format_satoshis(demurrage[chain.id], chain), 
 			         '</td><td class="balance">', format_satoshis(balance[chain.id], chain),
                      '</td><td class="currency">', escape(chain.code3),
                      '</td></tr>\n']
-        body += ['</table>\n']
+        body += ['</table>\n'] 
 
     def search_form(abe, page):
         q = (page['params'].get('q') or [''])[0]

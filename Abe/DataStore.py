@@ -1686,7 +1686,9 @@ store._ddl['txout_approx'],
             tx['out'].append(txout)
 
         for row in store.selectall("""
-            SELECT tx_id, txin_value, txin_scriptPubKey
+            SELECT tx_id, txin_value*POWER((1-1/POWER(2,20)),(tx_refheight)
+                    -(SELECT b2.tx_refheight FROM txout_detail b2 where b2.txout_id = prevout_id)), 
+			txin_scriptPubKey
               FROM txin_detail
              WHERE block_id = ?
              ORDER BY tx_pos, txin_pos
@@ -1716,10 +1718,13 @@ store._ddl['txout_approx'],
             txin = { 'value': txin_value }
             store._export_scriptPubKey(txin, found_chain, scriptPubKey)
             tx['in'].append(txin)
-
-        generated = block_out - block_in
+			
+        generated= block_out - block_in
         coinbase_tx = txs[tx_ids[0]]
         coinbase_tx['fees'] = 0
+        #generated = 9536743164
+        feedem = block_out - block_in
+        #block_fees = coinbase_tx['total_out'] - feedem
         block_fees = coinbase_tx['total_out'] - generated
 
         b = {
@@ -2174,7 +2179,7 @@ store._ddl['txout_approx'],
         dbhash = store.binin(binaddr)
         txpoints = []
 
-        def parse_row(is_out, row_type, nTime, chain_id, height, blk_hash, tx_hash, pos, value_o, value_r, script=None):
+        def parse_row(is_out, row_type, nTime, chain_id, height, blk_hash, tx_hash, pos, tx_refheight, value_o, value_r, script=None):
             chain = store.get_chain_by_id(chain_id)
             txpoint = {
                 'type':     row_type,
@@ -2185,6 +2190,7 @@ store._ddl['txout_approx'],
                 'blk_hash': store.hashout_hex(blk_hash),
                 'tx_hash':  store.hashout_hex(tx_hash),
                 'pos':      int(pos),
+				'tx_refheight':    int(tx_refheight),
                 'value':    int(value_o),
                 'value_r':    int(value_r),
                 }
@@ -2199,8 +2205,8 @@ store._ddl['txout_approx'],
         def parse_escrow_out(row): return parse_row(False, 'escrow', *row)
 
         def get_received(escrow):
-            ((current_height,),)= store.selectall("""SELECT block_height FROM chain_candidate WHERE chain_id = chain_id
-                    AND in_longest = 1 ORDER BY block_height DESC LIMIT 1""")
+            #((current_height,),)= store.selectall("""SELECT block_height FROM chain_candidate WHERE chain_id = chain_id
+            #        AND in_longest = 1 ORDER BY block_height DESC LIMIT 1""")
             return store.selectall("""
                 SELECT
                     b.block_nTime,
@@ -2208,9 +2214,8 @@ store._ddl['txout_approx'],
                     b.block_height,
                     b.block_hash,
                     tx.tx_hash,
-                    txin.txin_pos, -prevout.txout_value,
-                    -prevout.txout_value*POWER((1-1/POWER(2,20)),
-					(SELECT a2.tx_refheight FROM txin_detail a2 where a2.txin_id = txin.txin_id)
+                    txin.txin_pos, tx.tx_refheight, -prevout.txout_value,
+                    -prevout.txout_value*POWER((1-1/POWER(2,20)), (tx.tx_refheight)
                     -(SELECT b2.tx_refheight FROM txout_detail b2 where b2.txout_id = prevout.txout_id))""" + (""",
                     prevout.txout_scriptPubKey""" if escrow else "") + """
                   FROM chain_candidate cc
@@ -2238,10 +2243,10 @@ store._ddl['txout_approx'],
                     b.block_height,
                     b.block_hash,
                     tx.tx_hash,
-                    txout.txout_pos, txout.txout_value,
+                    txout.txout_pos, tx.tx_refheight, txout.txout_value,
                     txout.txout_value*POWER((1-1/POWER(2,20)),
 					(IFNULL((SELECT futurin2.tx_refheight FROM txin_detail futurin2 WHERE futurin2.prevout_id=txout.txout_id), ?))
-                    -(SELECT b2.tx_refheight FROM txout_detail b2 where b2.txout_id = txout.txout_id))""" + (""",
+                    -(tx.tx_refheight))""" + (""",
                     txout.txout_scriptPubKey""" if escrow else "") + """
                   FROM chain_candidate cc
                   JOIN block b ON (b.block_id = cc.block_id)
